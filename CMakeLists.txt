@@ -17,6 +17,7 @@ include_directories(imgui/backends)
 add_subdirectory(imgui)
 include_directories(glm/glm)
 add_subdirectory(glm)
+include_directories(${CMAKE_SOURCE_DIR} stb/)
 
 add_executable(${CMAKE_PROJECT_NAME} main.cpp glslprogram.h glslprogram.cpp)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OpenGL::GL glfw GLAD ${CMAKE_DL_LIBS} IMGUI glm::glm)

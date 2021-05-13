@@ -1,3 +1,7 @@
 build/
+debug_build/
+release_build/
 .vscode/
 imgui.ini
+.idea/
+*build*/
