@@ -15,7 +15,7 @@
 #include "glslprogram.h"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-void processInput(GLFWwindow *window);
+void processInput(GLFWwindow *window, float &dt, glm::vec3& cameraPos, glm::vec3 &cameraFront, glm::vec3 &cameraUp);
 
 // settings
 const unsigned int SCR_WIDTH = 800;
@@ -194,13 +194,21 @@ int main()
     float zNear = 0.1f;
     float zFar = 100.f;
     float fov = 70.0f;
+    glm::vec3 cameraPos   = glm::vec3(0.0f, 0.0f,  3.0f);
+    glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+    glm::vec3 cameraUp    = glm::vec3(0.0f, 1.0f,  0.0f);
     static float f = 0.0f;
+    float deltaTime = 0.0f;	// Time between current frame and last frame
+    float lastFrame = 0.0f; // Time of last frame
     while (!glfwWindowShouldClose(window))
     {
+        float currentFrame = glfwGetTime();
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
         glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
         // input
         // -----
-        processInput(window);
+        processInput(window, deltaTime, cameraPos, cameraFront, cameraUp);
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
@@ -220,21 +228,12 @@ int main()
             ImGui::End();
         }
 
-//        glm::vec3 cameraPos = glm::vec3(0.f, 0.f, 3.f);
-//        glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
-//        glm::vec3 cameraDirection = glm::normalize(cameraPos - cameraTarget);
-//        glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
-//        glm::vec3 cameraRight = glm::normalize(glm::cross(up, cameraDirection));
-//        glm::vec3 cameraUp = glm::cross(cameraDirection, cameraRight);
-//        glm::mat4 view;
-//        view = glm::lookAt(glm::vec3(0.0f, 0.0f, 3.0f),
-//                           glm::vec3(0.0f, 0.0f, 0.0f),
-//                           glm::vec3(0.0f, 1.0f, 0.0f));
         const float radius = 10.0f;
         float camX = sin(glfwGetTime()) * radius;
         float camZ = cos(glfwGetTime()) * radius;
         glm::mat4 view;
         view = glm::lookAt(glm::vec3(camX, 0.0, camZ), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0f));
+        view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
         shaderProgram.setUniform("view", view);
 
         glm::mat4 projection;
@@ -285,10 +284,20 @@ int main()
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
-void processInput(GLFWwindow *window)
+void processInput(GLFWwindow *window, float &dt, glm::vec3 &cameraPos, glm::vec3 &cameraFront, glm::vec3 &cameraUp)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+
+    const float cameraSpeed = 2.5f * dt;
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        cameraPos += cameraSpeed * cameraFront;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        cameraPos -= cameraSpeed * cameraFront;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
