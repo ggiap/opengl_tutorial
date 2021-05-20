@@ -16,10 +16,28 @@
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window, float &dt, glm::vec3& cameraPos, glm::vec3 &cameraFront, glm::vec3 &cameraUp);
+void mouse_callback(GLFWwindow *window, double x, double y);
+void scroll_callback(GLFWwindow *window, double xOffset, double yOffset);
 
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
+
+// camera
+glm::vec3 cameraPos   = glm::vec3(0.0f, 0.0f, 3.0f);
+glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+glm::vec3 cameraUp    = glm::vec3(0.0f, 1.0f, 0.0f);
+
+bool firstMouse = true;
+float yaw   = -90.0f;	// yaw is initialized to -90.0 degrees since a yaw of 0.0 results in a direction vector pointing to the right so we initially rotate a bit to the left.
+float pitch =  0.0f;
+float lastX =  800.0f / 2.0;
+float lastY =  600.0 / 2.0;
+float fov = 70.0f;
+
+// timing
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
 
 int main()
 {
@@ -37,7 +55,7 @@ int main()
     // glfw window creation
     // --------------------
     GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", nullptr, nullptr);
-    if (window == NULL)
+    if (window == nullptr)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -55,6 +73,9 @@ int main()
     }
 
     glEnable(GL_DEPTH_TEST);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetScrollCallback(window, scroll_callback);
+    glfwSetInputMode(window, GLFW_CURSOR, GL_FALSE);
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -193,13 +214,7 @@ int main()
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
     float zNear = 0.1f;
     float zFar = 100.f;
-    float fov = 70.0f;
-    glm::vec3 cameraPos   = glm::vec3(0.0f, 0.0f,  3.0f);
-    glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-    glm::vec3 cameraUp    = glm::vec3(0.0f, 1.0f,  0.0f);
     static float f = 0.0f;
-    float deltaTime = 0.0f;	// Time between current frame and last frame
-    float lastFrame = 0.0f; // Time of last frame
     while (!glfwWindowShouldClose(window))
     {
         float currentFrame = glfwGetTime();
@@ -209,6 +224,30 @@ int main()
         // input
         // -----
         processInput(window, deltaTime, cameraPos, cameraFront, cameraUp);
+
+        glClearColor(clear_color.x, clear_color.y, clear_color.z, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        glm::mat4 view;
+        view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+        shaderProgram.setUniform("view", view);
+
+        glm::mat4 projection;
+        projection = glm::perspective(glm::radians(fov), 800.f / 600.f, zNear, zFar);
+        shaderProgram.setUniform("projection", projection);
+
+        glm::mat4 model;
+        for(const auto &pos : cubePositions)
+        {
+            model = glm::mat4(1.0f);
+            //model = glm::scale(model, glm::vec3(0.5f, 0.5f, 1.f));
+            model = glm::translate(model, pos);
+            model = glm::rotate(model, static_cast<float>(glfwGetTime()), glm::vec3(0.5f, 1.0f, 0.0f));
+            shaderProgram.setUniform("model", model);
+
+            glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
@@ -223,45 +262,17 @@ int main()
 
             ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
 
-            ImGui::SliderFloat("FoV", &fov, 45.f, 100.f);
+            ImGui::SliderFloat("FoV", &fov, 45.f, 90.f);
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
             ImGui::End();
         }
 
-        const float radius = 10.0f;
-        float camX = sin(glfwGetTime()) * radius;
-        float camZ = cos(glfwGetTime()) * radius;
-        glm::mat4 view;
-        view = glm::lookAt(glm::vec3(camX, 0.0, camZ), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0f));
-        view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-        shaderProgram.setUniform("view", view);
-
-        glm::mat4 projection;
-        projection = glm::perspective(glm::radians(fov), 800.f / 600.f, zNear, zFar);
-        shaderProgram.setUniform("projection", projection);
-
-
         // render
         // ------
         ImGui::Render();
-        
-        glClearColor(clear_color.x, clear_color.y, clear_color.z, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glBindTexture(GL_TEXTURE_2D, texture);
         shaderProgram.use();
-
-        for(const auto &pos : cubePositions)
-        {
-            glm::mat4 model = glm::mat4(1.0f);
-            //model = glm::scale(model, glm::vec3(0.5f, 0.5f, 1.f));
-            model = glm::translate(model, pos);
-            model = glm::rotate(model, static_cast<float>(glfwGetTime()), glm::vec3(0.5f, 1.0f, 0.0f));
-            shaderProgram.setUniform("model", model);
-
-            glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
  
@@ -307,5 +318,51 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     // make sure the viewport matches the new window dimensions; note that width and 
     // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);
+}
+
+void mouse_callback(GLFWwindow *window, double x, double y)
+{
+    if (firstMouse)
+    {
+        lastX = x;
+        lastY = y;
+        firstMouse = false;
+    }
+
+    float xoffset = x - lastX;
+    float yoffset = lastY - y; // reversed since y-coordinates go from bottom to top
+    lastX = x;
+    lastY = y;
+
+    float sensitivity = 0.8f; // change this value to your liking
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;
+
+    yaw += xoffset;
+    pitch += yoffset;
+
+    // make sure that when pitch is out of bounds, screen doesn't get flipped
+    if (pitch > 89.0f)
+        pitch = 89.0f;
+    if (pitch < -89.0f)
+        pitch = -89.0f;
+
+    glm::vec3 front;
+    front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    front.y = sin(glm::radians(pitch));
+    front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    cameraFront = glm::normalize(front);
+}
+
+void scroll_callback(GLFWwindow *window, double xOffset, double yOffset)
+{
+    if(fov >= 45.f && fov <= 90.f)
+    {
+        fov -= yOffset;
+    }
+    if(fov < 45.f)
+        fov = 45.f;
+    if(fov > 90.f)
+        fov = 90.f;
 }
 
