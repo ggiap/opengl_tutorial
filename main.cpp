@@ -73,7 +73,7 @@ int main()
     }
 
     glEnable(GL_DEPTH_TEST);
-    glfwSetCursorPosCallback(window, mouse_callback);
+    //glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetInputMode(window, GLFW_CURSOR, GL_FALSE);
 
@@ -96,7 +96,7 @@ int main()
     try
     {
         shaderProgram.compileShader("assets/vertex.vert");
-        shaderProgram.compileShader("assets/fragment.frag");
+        shaderProgram.compileShader("assets/lightShader.frag");
         shaderProgram.link();
         shaderProgram.validate();
         shaderProgram.use();
@@ -206,12 +206,20 @@ int main()
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
-    // uncomment this call to draw in wireframe polygons.
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    unsigned int lightVAO;
+    glGenVertexArrays(1, &lightVAO);
+    glBindVertexArray(lightVAO);
+    // we only need to bind to the VBO, the container's VBO's data already contains the data.
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    // set the vertex attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, nullptr);
+    glEnableVertexAttribArray(0);
 
     // render loop
     // -----------
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    ImVec4 objectColor = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    ImVec4 lightColor = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
     float zNear = 0.1f;
     float zFar = 100.f;
     static float f = 0.0f;
@@ -227,6 +235,9 @@ int main()
 
         glClearColor(clear_color.x, clear_color.y, clear_color.z, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        shaderProgram.setUniform("objectColor", glm::vec4(objectColor.x, objectColor.y, objectColor.z, objectColor.w));
+        shaderProgram.setUniform("lightColor", glm::vec4(lightColor.z, lightColor.y, lightColor.z, lightColor.w));
 
         glm::mat4 view;
         view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
@@ -261,6 +272,8 @@ int main()
             ImGui::Text("Change background and shape colors.");     // Display some text (you can use a format strings too)
 
             ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+            ImGui::ColorEdit3("object color", (float*)&objectColor); // Edit 3 floats representing a color
+            ImGui::ColorEdit3("light color", (float*)&lightColor); // Edit 3 floats representing a color
 
             ImGui::SliderFloat("FoV", &fov, 45.f, 90.f);
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
