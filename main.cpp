@@ -3,9 +3,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -93,13 +90,18 @@ int main()
     // build and compile our shader program
     // ------------------------------------
     GLSLProgram shaderProgram;
+    GLSLProgram lightShaderProgram;
     try
     {
-        shaderProgram.compileShader("assets/vertex.vert");
-        shaderProgram.compileShader("assets/lightShader.frag");
+        lightShaderProgram.compileShader("assets/light_Cube.vert");
+        lightShaderProgram.compileShader("assets/light_Cube.frag");
+        lightShaderProgram.link();
+        lightShaderProgram.validate();
+
+        shaderProgram.compileShader("assets/basic_lighting.vert");
+        shaderProgram.compileShader("assets/basic_lighting.frag");
         shaderProgram.link();
         shaderProgram.validate();
-        shaderProgram.use();
     }
     catch(const GLSLProgramException &e)
     {
@@ -153,7 +155,6 @@ int main()
     };
 
 
-
     std::array<glm::vec3, 10> cubePositions = {
             glm::vec3( 0.0f,  0.0f,  0.0f),
             glm::vec3( 2.0f,  5.0f, -15.0f),
@@ -167,20 +168,18 @@ int main()
             glm::vec3(-1.3f,  1.0f, -1.5f)
     };
 
-    unsigned int VBO, VAO;
-    glGenVertexArrays(1, &VAO);
+    unsigned int VBO, cubesVAO;
+    glGenVertexArrays(1, &cubesVAO);
     glGenBuffers(1, &VBO);
-    // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
-    glBindVertexArray(VAO);
 
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
+    glBindVertexArray(cubesVAO);
     GLsizei stride = 6 * sizeof(float);
     // position attribute
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, nullptr);
     glEnableVertexAttribArray(0);
-
     // normal attribute
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
@@ -190,7 +189,7 @@ int main()
     glBindVertexArray(lightVAO);
     // we only need to bind to the VBO, the container's VBO's data already contains the data.
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    // set the vertex attribute
+    // position attribute
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, nullptr);
     glEnableVertexAttribArray(0);
 
@@ -199,6 +198,7 @@ int main()
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
     ImVec4 objectColor = ImVec4(1.f, 0.f, 0.f, 1.00f);
     ImVec4 lightColor = ImVec4(1.f, 1.f, 1.f, 1.00f);
+    glm::vec3 lightPos = glm::vec3(1.f, 0.f, -1.f);
     float ambientStrength = 1.f;
     float zNear = 0.1f;
     float zFar = 100.f;
@@ -208,7 +208,6 @@ int main()
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
         // input
         // -----
         processInput(window, deltaTime, cameraPos, cameraFront, cameraUp);
@@ -216,9 +215,14 @@ int main()
         glClearColor(clear_color.x, clear_color.y, clear_color.z, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        shaderProgram.setUniform("objectColor", glm::vec4(objectColor.x, objectColor.y, objectColor.z, objectColor.w));
-        shaderProgram.setUniform("lightColor", glm::vec4(lightColor.z, lightColor.y, lightColor.z, lightColor.w));
+        lightPos.x = 4.f * sin(glfwGetTime() * .5f);
+        lightPos.z = 3.f * cos(glfwGetTime());
+
+        shaderProgram.use();
+        shaderProgram.setUniform("objectColor", glm::vec3(objectColor.x, objectColor.y, objectColor.z));
+        shaderProgram.setUniform("lightColor", glm::vec3(lightColor.z, lightColor.y, lightColor.z));
         shaderProgram.setUniform("ambientStrength", ambientStrength);
+        shaderProgram.setUniform("lightPos", lightPos);
 
         glm::mat4 view;
         view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
@@ -229,17 +233,29 @@ int main()
         shaderProgram.setUniform("projection", projection);
 
         glm::mat4 model;
-        for(const auto &pos : cubePositions)
+        for(const auto& pos : cubePositions)
         {
             model = glm::mat4(1.0f);
-            //model = glm::scale(model, glm::vec3(0.5f, 0.5f, 1.f));
             model = glm::translate(model, pos);
             model = glm::rotate(model, static_cast<float>(glfwGetTime()), glm::vec3(0.5f, 1.0f, 0.0f));
             shaderProgram.setUniform("model", model);
 
-            glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
+            // Draw cube
+            glBindVertexArray(cubesVAO);
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
+
+        lightShaderProgram.use();
+        lightShaderProgram.setUniform("projection", projection);
+        lightShaderProgram.setUniform("view", view);
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, lightPos);
+        model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
+        lightShaderProgram.setUniform("model", model);
+
+        // Draw light
+        glBindVertexArray(lightVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
@@ -248,9 +264,7 @@ int main()
 
         // Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
         {
-            ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-
-            ImGui::Text("Change background and shape colors.");     // Display some text (you can use a format strings too)
+            ImGui::Begin("Terminal");                          // Create a window called "Hello, world!" and append into it.
 
             ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
             ImGui::ColorEdit3("object color", (float*)&objectColor); // Edit 3 floats representing a color
@@ -266,10 +280,8 @@ int main()
         // ------
         ImGui::Render();
 
-        shaderProgram.use();
-
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
- 
+
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
@@ -278,7 +290,8 @@ int main()
 
     // optional: de-allocate all resources once they've outlived their purpose:
     // ------------------------------------------------------------------------
-    glDeleteVertexArrays(1, &VAO);
+    glDeleteVertexArrays(1, &cubesVAO);
+    glDeleteVertexArrays(1, &lightVAO);
     glDeleteBuffers(1, &VBO);
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
@@ -309,7 +322,7 @@ void processInput(GLFWwindow *window, float &dt, glm::vec3 &cameraPos, glm::vec3
 // ---------------------------------------------------------------------------------------------
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
-    // make sure the viewport matches the new window dimensions; note that width and 
+    // make sure the viewport matches the new window dimensions; note that width and
     // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);
 }
@@ -359,4 +372,10 @@ void scroll_callback(GLFWwindow *window, double xOffset, double yOffset)
     if(fov > 90.f)
         fov = 90.f;
 }
+
+
+
+
+
+
 
