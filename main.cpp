@@ -199,7 +199,7 @@ int main()
     ImVec4 objectColor = ImVec4(1.f, 0.f, 0.f, 1.00f);
     ImVec4 lightColor = ImVec4(1.f, 1.f, 1.f, 1.00f);
     glm::vec3 lightPos = glm::vec3(1.f, 0.f, -1.f);
-    float ambientStrength = 1.f;
+    float ambientStrength = 0.1f;
     float zNear = 0.1f;
     float zFar = 100.f;
     static float f = 0.0f;
@@ -219,6 +219,7 @@ int main()
         lightPos.z = 3.f * cos(glfwGetTime());
 
         shaderProgram.use();
+        shaderProgram.setUniform("viewPos", cameraPos);
         shaderProgram.setUniform("objectColor", glm::vec3(objectColor.x, objectColor.y, objectColor.z));
         shaderProgram.setUniform("lightColor", glm::vec3(lightColor.z, lightColor.y, lightColor.z));
         shaderProgram.setUniform("ambientStrength", ambientStrength);
@@ -246,6 +247,7 @@ int main()
         }
 
         lightShaderProgram.use();
+        lightShaderProgram.setUniform("lightColor", glm::vec3(lightColor.z, lightColor.y, lightColor.z));
         lightShaderProgram.setUniform("projection", projection);
         lightShaderProgram.setUniform("view", view);
         model = glm::mat4(1.0f);
