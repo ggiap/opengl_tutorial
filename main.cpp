@@ -200,6 +200,7 @@ int main()
     ImVec4 lightColor = ImVec4(1.f, 1.f, 1.f, 1.00f);
     glm::vec3 lightPos = glm::vec3(1.f, 0.f, -1.f);
     float ambientStrength = 0.1f;
+    float specularStrength = 0.5f;
     float zNear = 0.1f;
     float zFar = 100.f;
     static float f = 0.0f;
@@ -223,6 +224,7 @@ int main()
         shaderProgram.setUniform("objectColor", glm::vec3(objectColor.x, objectColor.y, objectColor.z));
         shaderProgram.setUniform("lightColor", glm::vec3(lightColor.z, lightColor.y, lightColor.z));
         shaderProgram.setUniform("ambientStrength", ambientStrength);
+        shaderProgram.setUniform("specularStrength", specularStrength);
         shaderProgram.setUniform("lightPos", lightPos);
 
         glm::mat4 view;
@@ -238,7 +240,7 @@ int main()
         {
             model = glm::mat4(1.0f);
             model = glm::translate(model, pos);
-            model = glm::rotate(model, static_cast<float>(glfwGetTime()), glm::vec3(0.5f, 1.0f, 0.0f));
+            //model = glm::rotate(model, static_cast<float>(glfwGetTime()), glm::vec3(0.5f, 1.0f, 0.0f));
             shaderProgram.setUniform("model", model);
 
             // Draw cube
@@ -272,6 +274,7 @@ int main()
             ImGui::ColorEdit3("object color", (float*)&objectColor); // Edit 3 floats representing a color
             ImGui::ColorEdit3("light color", (float*)&lightColor); // Edit 3 floats representing a color
             ImGui::SliderFloat("ambientStrength", &ambientStrength, 0.1f, 1.f);
+            ImGui::SliderFloat("specularStrength", &specularStrength, 0.5f, 1.f);
 
             ImGui::SliderFloat("FoV", &fov, 45.f, 90.f);
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
