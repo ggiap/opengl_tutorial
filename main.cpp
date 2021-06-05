@@ -223,7 +223,7 @@ int main()
         shaderProgram.use();
         shaderProgram.setUniform("viewPos", cameraPos);
         shaderProgram.setUniform("objectColor", glm::vec3(objectColor.x, objectColor.y, objectColor.z));
-        shaderProgram.setUniform("lightColor", glm::vec3(lightColor.z, lightColor.y, lightColor.z));
+        shaderProgram.setUniform("lightColor", glm::vec3(lightColor.x, lightColor.y, lightColor.z));
         shaderProgram.setUniform("ambientStrength", ambientStrength);
         shaderProgram.setUniform("specularStrength", specularStrength);
         shaderProgram.setUniform("specularExponent", specularExponent);
@@ -251,7 +251,7 @@ int main()
         }
 
         lightShaderProgram.use();
-        lightShaderProgram.setUniform("lightColor", glm::vec3(lightColor.z, lightColor.y, lightColor.z));
+        lightShaderProgram.setUniform("lightColor", glm::vec3(lightColor.x, lightColor.y, lightColor.z));
         lightShaderProgram.setUniform("projection", projection);
         lightShaderProgram.setUniform("view", view);
         model = glm::mat4(1.0f);
